@@ -1,4 +1,10 @@
 <?php
+// Pega o ano da URL
+$year = isset($_GET['year']) ? (int)$_GET['year'] : 2020; // Valor padrão 2020 caso não seja passado o ano
+$limit = 10; // Número de questões por página
+$offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0; // Offset para a paginação
+
+// Função que busca as questões da API
 function getEnemQuestionsByYear($year, $limit = 10, $offset = 0) {
     $url = "https://api.enem.dev/v1/exams/{$year}/questions?limit={$limit}&offset={$offset}";
     $ch = curl_init($url);
@@ -16,15 +22,10 @@ function getEnemQuestionsByYear($year, $limit = 10, $offset = 0) {
     ];
 }
 
-$year = 2020;
-$limit = 10; // Define o número de questões por página
-
-// Recebe o offset da URL, ou usa 0 como padrão
-$offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-
-
+// Chamada à API para pegar as questões da prova
 $response = getEnemQuestionsByYear($year, $limit, $offset);
 
+// Verificação da resposta
 if ($response['status'] !== 200) {
     echo "Erro HTTP: {$response['status']}<br>";
     echo "Resposta: " . htmlspecialchars(json_encode($response['data'])) . "<br>";
@@ -33,10 +34,10 @@ if ($response['status'] !== 200) {
 
 $body = $response['data'];
 
-// Verifica o número total de questões
-$totalQuestions = isset($body['total']) ? $body['total'] : count($body['questions']);
-$totalPages = ceil($totalQuestions / $limit); // Calcula o número total de páginas
-$currentPage = floor($offset / $limit) + 1; // Página atual
+// Cálculo da paginação
+$totalQuestions = isset($body['total']) && is_numeric($body['total']) ? (int)$body['total'] : 90; // valor padrão
+$totalPages = ceil($totalQuestions / $limit);
+$currentPage = floor($offset / $limit) + 1;
 ?>
 
 <!DOCTYPE html>
@@ -45,9 +46,10 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Questões ENEM <?php echo $year; ?></title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         body {
-            font-family: 'Arial', sans-serif;
+            font-family: 'Roboto', sans-serif;
             background-color: #f4f4f4;
             color: #333;
             margin: 0;
@@ -152,6 +154,19 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
             background-color: #ddd;
             color: #888;
         }
+
+        .question .card {
+            margin-bottom: 0;
+        }
+
+        .card-title a {
+            color: #333;
+            text-decoration: none;
+        }
+
+        .card-title a:hover {
+            color: #4CAF50;
+        }
     </style>
 </head>
 <body>
@@ -187,12 +202,12 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
                     </div>
                 <?php endif; ?>
 
-                <!-- Alternativas como Botões -->
+                <!-- Alternativas -->
                 <div class="alternatives">
                     <?php foreach ($question['alternatives'] as $alt): ?>
                         <button class="alternative-btn" data-letter="<?php echo $alt['letter']; ?>"
                                 onclick="selectAlternative(this)">
-                            <strong><?php echo $alt['letter']; ?></strong> <?php echo htmlspecialchars($alt['text']); ?>
+                            <strong><?php echo $alt['letter']; ?>)</strong> <?php echo htmlspecialchars($alt['text']); ?>
                         </button>
                     <?php endforeach; ?>
                 </div>
@@ -202,15 +217,15 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
         <!-- Paginação -->
         <div class="pagination">
             <!-- Anterior -->
-            <?php if ($currentPage > 1 ): ?>
-                <a href="?offset=<?php echo max($offset - $limit, 0); ?>">&laquo; Anterior</a>
+            <?php if ($currentPage > 1): ?>
+                <a href="?year=<?php echo $year; ?>&offset=<?php echo max($offset - $limit, 0); ?>">&laquo; Anterior</a>
             <?php else: ?>
                 <a class="disabled" href="#">Anterior</a>
             <?php endif; ?>
 
             <!-- Próximo -->
             <?php if ($currentPage < $totalPages): ?>
-                <a href="?offset=<?php echo $offset + $limit; ?>">Próximo &raquo;</a>
+                <a href="?year=<?php echo $year; ?>&offset=<?php echo $offset + $limit; ?>">Próximo &raquo;</a>
             <?php else: ?>
                 <a class="disabled" href="#">Próximo</a>
             <?php endif; ?>
@@ -219,13 +234,10 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
 
     <script>
         function selectAlternative(button) {
-            // Remove a classe "selected" de todos os botões
             const buttons = document.querySelectorAll('.alternative-btn');
             buttons.forEach(function(btn) {
                 btn.classList.remove('selected');
             });
-
-            // Adiciona a classe "selected" no botão clicado
             button.classList.add('selected');
         }
     </script>
