@@ -1,4 +1,12 @@
 <?php
+// 1. Parâmetros iniciais
+$year = 2020;
+$limit = 10; // Número de questões por página
+  
+// 2. Pega o offset da URL antes de usá-lo
+$offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
+// 3. Função que busca as questões da API
 function getEnemQuestionsByYear($year, $limit = 10, $offset = 0) {
     $url = "https://api.enem.dev/v1/exams/{$year}/questions?limit={$limit}&offset={$offset}";
     $ch = curl_init($url);
@@ -16,14 +24,10 @@ function getEnemQuestionsByYear($year, $limit = 10, $offset = 0) {
     ];
 }
 
-$year = 2020;
-$limit = 10; // Define o número de questões por página
-
-// Recebe o offset da URL, ou usa 0 como padrão
-$offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-
+// 4. Chamada da API com offset correto
 $response = getEnemQuestionsByYear($year, $limit, $offset);
 
+// 5. Verificação da resposta
 if ($response['status'] !== 200) {
     echo "Erro HTTP: {$response['status']}<br>";
     echo "Resposta: " . htmlspecialchars(json_encode($response['data'])) . "<br>";
@@ -32,11 +36,23 @@ if ($response['status'] !== 200) {
 
 $body = $response['data'];
 
-// Verifica o número total de questões
-$totalQuestions = isset($body['total']) ? $body['total'] : count($body['questions']);
-$totalPages = ceil($totalQuestions / $limit); // Calcula o número total de páginas
-$currentPage = floor($offset / $limit) + 1; // Página atual
+// 6. Cálculo de paginação
+$totalQuestions = isset($body['total']) && is_numeric($body['total']) ? (int)$body['total'] : 90; // valor padrão
+$totalPages = ceil($totalQuestions / $limit);
+$currentPage = floor($offset / $limit) + 1;
 ?>
+
+<?php
+echo "<pre>";
+echo "Offset atual: $offset\n";
+echo "Total de questões: $totalQuestions\n";
+echo "Limite por página: $limit\n";
+echo "Total de páginas: $totalPages\n";
+echo "Página atual: $currentPage\n";
+echo "</pre>";
+?>
+
+
 
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -45,6 +61,7 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Questões ENEM <?php echo $year; ?></title>
     <style>
+        /* ... seu CSS completo aqui (sem alterações) ... */
         body {
             font-family: 'Arial', sans-serif;
             background-color: #f4f4f4;
@@ -191,7 +208,7 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
                     <?php foreach ($question['alternatives'] as $alt): ?>
                         <button class="alternative-btn" data-letter="<?php echo $alt['letter']; ?>"
                                 onclick="selectAlternative(this)">
-                            <strong><?php echo $alt['letter']; ?></strong> <?php echo htmlspecialchars($alt['text']); ?>
+                            <strong><?php echo $alt['letter']; ?>)</strong> <?php echo htmlspecialchars($alt['text']); ?>
                         </button>
                     <?php endforeach; ?>
                 </div>
@@ -218,13 +235,10 @@ $currentPage = floor($offset / $limit) + 1; // Página atual
 
     <script>
         function selectAlternative(button) {
-            // Remove a classe "selected" de todos os botões
             const buttons = document.querySelectorAll('.alternative-btn');
             buttons.forEach(function(btn) {
                 btn.classList.remove('selected');
             });
-
-            // Adiciona a classe "selected" no botão clicado
             button.classList.add('selected');
         }
     </script>
