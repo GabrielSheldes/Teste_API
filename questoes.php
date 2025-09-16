@@ -34,7 +34,8 @@ $currentPage = floor($offset / $limit) + 1;
     <meta charset="UTF-8" />
     <title>Questões ENEM <?php echo $year; ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-     <link rel="stylesheet" href="style.css">
+     <link rel="stylesheet" href="stylequestions.css">
+     
    
 </head>
 <body>

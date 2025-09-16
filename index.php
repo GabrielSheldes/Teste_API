@@ -9,6 +9,7 @@ $provas = json_decode(file_get_contents($url)); // Retorna array de objetos
     <meta charset="UTF-8">
     <title>Provas do ENEM</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="styleindex.css">
 </head>
 <body>
     <div class="container mt-4">
