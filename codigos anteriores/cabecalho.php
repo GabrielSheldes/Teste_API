@@ -34,8 +34,120 @@ $currentPage = floor($offset / $limit) + 1;
     <meta charset="UTF-8" />
     <title>Questões ENEM <?php echo $year; ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
-     <link rel="stylesheet" href="style.css">
-   
+    <style>
+        /* Mesmos estilos que você já tinha */
+        body{ 
+            font-family: 'Roboto', sans-serif; 
+            background-color: #f4f4f4; 
+            color: #333; 
+            margin: 0; 
+            padding: 0; 
+        }
+        h2{ 
+            text-align: center; 
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 20px; 
+            margin: 0; 
+        }
+        .container{ 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 20px; 
+        }
+        .question{ 
+            background-color: #fff; 
+            border: 1px solid #ddd; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            padding: 20px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1); 
+        }
+        .question h3{ 
+            font-size: 18px;
+        }
+        .context, .enunciado{ 
+            background-color: #f9f9f9; 
+            padding: 10px; 
+            border-left: 5px solid #4CAF50; 
+            margin-bottom: 10px; 
+        }
+        .alternatives{ 
+            display: flex; 
+            flex-direction: column; 
+            gap: 10px; 
+        }
+        .alternative-btn{ 
+            padding: 10px 20px; 
+            background-color: #f4f4f4; 
+            border: 1px solid #ddd; 
+            border-radius: 5px; 
+            font-size: 16px; 
+            cursor: pointer; 
+            text-align: left; 
+            transition;
+            background-color 0.3s, color 0.3s; 
+        }
+        .alternative-btn:hover{ 
+            background-color: #45a049; 
+            color: white;
+        }
+        .alternative-btn.selected{ 
+            background-color: #c3e6cb; 
+            border-color: #8ccf7e; 
+        }
+        img{ 
+            max-width: 100%; 
+            margin-top: 15px; 
+            border-radius: 5px; 
+        }
+        .pagination{ 
+            text-align: center; 
+            margin-top: 20px; 
+        }
+        .pagination a{ 
+            padding: 10px 20px; 
+            background-color: #4CAF50; 
+            color: white; 
+            text-decoration: none; 
+            margin: 0 5px; 
+            border-radius: 5px; 
+        }
+        .pagination a.disabled{ 
+            background-color: #ccc; 
+            pointer-events: none; 
+        }
+        .finalizar-btn{ 
+            display: block; 
+            margin: 30px auto 0; 
+            padding: 15px 30px; 
+            font-size: 16px; 
+            background-color: #4CAF50; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            transition; 
+            background-color 0.3s; 
+        }
+        .finalizar-btn:hover{ 
+            background-color: #45a049; 
+        }
+        .respostas-container ul{ 
+            list-style: none; 
+            padding: 0; 
+            max-width: 600px; 
+            margin: 0 auto; 
+        }
+        .respostas-container li{ 
+            background: #fff; 
+            border: 1px solid #ddd; 
+            margin-bottom: 10px; 
+            padding: 10px; 
+            border-radius: 5px; 
+            font-size: 16px; 
+        }
+    </style>
 </head>
 <body>
     <div class="container" id="container">
