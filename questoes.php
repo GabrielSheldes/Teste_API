@@ -128,43 +128,88 @@ $currentPage = floor($offset / $limit) + 1;
         }
 
         function finalizarProva() {
-            let respostas = JSON.parse(localStorage.getItem('respostas')) || {};
-            let resultado = "<h2>Resultado da Prova</h2><div class='respostas-container'><ul>";
+        let respostas = JSON.parse(localStorage.getItem('respostas')) || {};
+        let resultado = "<h2>Resultado da Prova</h2><div class='respostas-container'><ul>";
 
-            const ordenadas = Object.keys(respostas).sort(
-                (a, b) => parseInt(a.replace('q', '')) - parseInt(b.replace('q', ''))
-            );
+        const ordenadas = Object.keys(respostas).sort(
+            (a, b) => parseInt(a.replace('q', '')) - parseInt(b.replace('q', ''))
+        );
 
-            if (ordenadas.length === 0) {
-                resultado += "<li>Você não respondeu nenhuma questão.</li>";
-            } else {
-                let acertos = 0;
+        if (ordenadas.length === 0) {
+            resultado += "<li>Você não respondeu nenhuma questão.</li>";
+        } else {
+            let acertos = 0;
 
-                ordenadas.forEach(key => {
-                    const r = respostas[key];
-                    const correta = r.correta;
-                    const marcada = r.selecionada;
-                    const status = correta === marcada ? "✅ Acertou" : "❌ Errou";
+            ordenadas.forEach(key => {
+                const r = respostas[key];
+                const correta = r.correta;
+                const marcada = r.selecionada;
+                const status = correta === marcada ? "✅ Acertou" : "❌ Errou";
 
-                    if (correta === marcada) acertos++;
+                if (correta === marcada) acertos++;
 
-                    resultado += `<li>
-                        <strong>Questão ${key.replace('q', '')}</strong><br>
-                        Sua resposta: <strong>${marcada}</strong><br>
-                        Gabarito: <strong>${correta}</strong><br>
-                        Resultado: ${status}
-                    </li>`;
+                resultado += `<li>
+                    <strong>Questão ${key.replace('q', '')}</strong><br>
+                    Sua resposta: <strong>${marcada}</strong><br>
+                    Gabarito: <strong>${correta}</strong><br>
+                    Resultado: ${status}
+                </li>`;
+            });
+
+            let total = ordenadas.length;
+            let erros = total - acertos;
+            let porcentagem = ((acertos / total) * 100).toFixed(2);
+
+            resultado += `<li><strong>Total de acertos:</strong> ${acertos} de ${total} (${porcentagem}%)</li>`;
+
+            // Adiciona o canvas para o gráfico
+            resultado += `
+                <div style="max-width:500px; margin:20px auto;">
+                    <canvas id="graficoResultado"></canvas>
+                </div>
+            `;
+
+            setTimeout(() => {
+                const ctx = document.getElementById('graficoResultado');
+                new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Acertos', 'Erros'],
+                        datasets: [{
+                            data: [acertos, erros],
+                            backgroundColor: ['#4CAF50', '#F44336']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let total = acertos + erros;
+                                        let value = context.raw;
+                                        let pct = ((value / total) * 100).toFixed(1);
+                                        return `${context.label}: ${value} (${pct}%)`;
+                                    }
+                                }
+                            }
+                        }
+                    }
                 });
-
-                resultado += `<li><strong>Total de acertos:</strong> ${acertos} de ${ordenadas.length}</li>`;
-            }
-
-            resultado += "</ul></div>";
-
-            document.getElementById('container').innerHTML = resultado;
-            // Limpa localStorage para nova prova
-            localStorage.removeItem('respostas');
+            }, 100);
         }
+
+        resultado += "</ul></div>";
+
+        document.getElementById('container').innerHTML = resultado;
+        localStorage.removeItem('respostas');
+    }
+
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </body>
 </html>
