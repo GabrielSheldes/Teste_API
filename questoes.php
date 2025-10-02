@@ -1,20 +1,23 @@
 <?php
 $year = isset($_GET['year']) ? (int)$_GET['year'] : 2020;
 $lang = isset($_GET['lang']) ? $_GET['lang'] : null;
+$caderno = isset($_GET['caderno']) ? (int)$_GET['caderno'] : null;
 $limit = 10;
 $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
-$caderno = isset($_GET['caderno']) ? (int)$_GET['caderno'] : null;
 
-// Função para buscar os idiomas disponíveis para o ano
+// Função para buscar os dados do exame (inclui idiomas)
 function getEnemExamByYear($year) {
     $url = "https://api.enem.dev/v1/exams/{$year}";
     $response = file_get_contents($url);
     return json_decode($response, true);
 }
 
-// Função para buscar as questões filtradas por idioma
-function getEnemQuestionsByYear($year, $limit = 10, $offset = 0, $lang = 'pt') {
-    $url = "https://api.enem.dev/v1/exams/{$year}/questions?limit={$limit}&offset={$offset}&language={$lang}";
+// Função para buscar as questões filtradas por idioma e caderno (offset ajustado)
+function getEnemQuestionsByYear($year, $limit = 10, $offset = 0, $lang = null) {
+    $url = "https://api.enem.dev/v1/exams/{$year}/questions?limit={$limit}&offset={$offset}";
+    if ($lang) {
+        $url .= "&language={$lang}";
+    }
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
@@ -24,58 +27,56 @@ function getEnemQuestionsByYear($year, $limit = 10, $offset = 0, $lang = 'pt') {
     return ['status' => $status, 'data' => json_decode($response, true)];
 }
 
-// Buscar dados da prova para idiomas
 $examData = getEnemExamByYear($year);
+$hasLanguages = !empty($examData['languages']);
 
-// Verifica se o ano não possui idiomas disponíveis
-if (empty($examData['languages']) && !$lang) {
-    // Redireciona para idioma 'pt' para evitar erro 400 (se disponível)
-    header("Location: ?year={$year}&lang=pt");
+// 1) Escolha do caderno, se não selecionado
+if (!$caderno) {
+    echo "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>Escolha do Caderno - ENEM {$year}</title>";
+    echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css'>";
+    echo "</head><body><div class='container mt-4'>";
+    echo "<h2>Selecione o caderno da prova ENEM {$year}:</h2>";
+    echo "<div class='d-flex gap-3'>";
+    echo "<a href='?year={$year}&caderno=1' class='btn btn-primary btn-lg'>Caderno 1 (Questões 1 a 90)</a>";
+    echo "<a href='?year={$year}&caderno=2' class='btn btn-secondary btn-lg'>Caderno 2 (Questões 91 a 180)</a>";
+    echo "</div>";
+    echo "<a href='index.php' class='btn btn-link mt-3'>← Voltar</a>";
+    echo "</div></body></html>";
     exit;
 }
 
-// Se idioma não selecionado e houver idiomas disponíveis, mostrar seleção
-if (!$lang && !empty($examData['languages'])) {
+// 2) Escolha do idioma, se existir idiomas e idioma não selecionado
+if ($hasLanguages && !$lang) {
     echo "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>Seleção de Idioma</title>";
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css'>";
     echo "</head><body><div class='container mt-4'>";
-    echo "<h2>Selecione o idioma da prova de {$year}:</h2>";
-
+    echo "<h2>Selecione o idioma da prova de {$year} (Caderno {$caderno}):</h2>";
     echo "<ul class='list-group'>";
     foreach ($examData['languages'] as $idioma) {
         $label = htmlspecialchars($idioma['label']);
         $value = htmlspecialchars($idioma['value']);
         echo "<li class='list-group-item'>";
-        echo "<a href='?year={$year}&lang={$value}' class='btn btn-primary'>{$label}</a>";
+        echo "<a href='?year={$year}&lang={$value}&caderno={$caderno}' class='btn btn-primary'>{$label}</a>";
         echo "</li>";
     }
     echo "</ul>";
-
-    echo "<a href='index.php' class='btn btn-secondary mt-3'>← Voltar</a>";
+    echo "<a href='?year={$year}&caderno={$caderno}' class='btn btn-secondary mt-3'>← Voltar</a>";
     echo "</div></body></html>";
     exit;
 }
 
-// Se caderno não foi selecionado ou inválido, exibe opção para escolher
-if (!$caderno || !in_array($caderno, [1, 2])) {
-    echo "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>Escolha o Caderno</title>";
-    echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css'>";
-    echo "</head><body><div class='container mt-4'>";
-    echo "<h2>Escolha o Caderno da Prova de {$year}:</h2>";
-    echo "<div class='d-flex gap-3'>";
-    echo "<a href='?year={$year}&caderno=1" . ($lang ? "&lang={$lang}" : "") . "' class='btn btn-primary'>Caderno 1 (Q1–Q90)</a>";
-    echo "<a href='?year={$year}&caderno=2" . ($lang ? "&lang={$lang}" : "") . "' class='btn btn-primary'>Caderno 2 (Q91–Q180)</a>";
-    echo "</div>";
-    echo "<a href='index.php' class='btn btn-secondary mt-3'>← Voltar</a>";
-    echo "</div></body></html>";
-    exit;
+// Se não há idiomas, força lang para null para evitar erro na API
+if (!$hasLanguages) {
+    $lang = null;
 }
 
-// Ajusta offset para o caderno correto
-$offsetBase = ($caderno === 2) ? 90 : 0; // Caderno 2 começa na questão 91 (offset 90)
-$offset += $offsetBase;
+// Ajusta o offset para o caderno selecionado
+// Cada caderno tem 90 questões: caderno 1 = offset original; caderno 2 = offset + 90
+if ($caderno === 2) {
+    $offset += 90;
+}
 
-// Busca questões da API
+// Busca as questões com os parâmetros corretos
 $response = getEnemQuestionsByYear($year, $limit, $offset, $lang);
 
 if ($response['status'] !== 200) {
@@ -85,13 +86,10 @@ if ($response['status'] !== 200) {
 }
 
 $body = $response['data'];
-
-// Limita total de questões a 90 por caderno
 $totalQuestions = isset($body['total']) && is_numeric($body['total']) ? (int)$body['total'] : 90;
-if ($totalQuestions > 90) $totalQuestions = 90;
+$totalPages = ceil(90 / $limit); // Cada caderno tem 90 questões
+$currentPage = floor(($offset % 90) / $limit) + 1; // Página relativa ao caderno
 
-$totalPages = ceil($totalQuestions / $limit);
-$currentPage = floor(($offset - $offsetBase) / $limit) + 1;
 ?>
 
 <!DOCTYPE html>
@@ -104,7 +102,7 @@ $currentPage = floor(($offset - $offsetBase) / $limit) + 1;
 </head>
 <body>
     <div class="container" id="container">
-        <h2>Questões ENEM <?php echo $year; ?> - Caderno <?php echo $caderno; ?> (Idioma: <?php echo strtoupper($lang); ?>)</h2>
+        <h2>Questões ENEM <?php echo $year; ?> (Caderno <?php echo $caderno; ?>, Idioma: <?php echo $lang ? strtoupper($lang) : 'Padrão'; ?>)</h2>
 
         <?php foreach ($body['questions'] as $question): 
             $correct = '';
@@ -153,13 +151,13 @@ $currentPage = floor(($offset - $offsetBase) / $limit) + 1;
 
         <div class="pagination">
             <?php if ($currentPage > 1): ?>
-                <a href="?year=<?php echo $year; ?>&caderno=<?php echo $caderno; ?>&offset=<?php echo max($offset - $limit, $offsetBase); ?>&lang=<?php echo $lang; ?>">&laquo; Anterior</a>
+                <a href="?year=<?php echo $year; ?>&offset=<?php echo max(($offset - $limit), ($caderno === 2 ? 90 : 0)); ?>&lang=<?php echo $lang; ?>&caderno=<?php echo $caderno; ?>">&laquo; Anterior</a>
             <?php else: ?>
                 <a class="disabled" href="#">Anterior</a>
             <?php endif; ?>
 
             <?php if ($currentPage < $totalPages): ?>
-                <a href="?year=<?php echo $year; ?>&caderno=<?php echo $caderno; ?>&offset=<?php echo $offset + $limit; ?>&lang=<?php echo $lang; ?>">Próximo &raquo;</a>
+                <a href="?year=<?php echo $year; ?>&offset=<?php echo ($offset + $limit); ?>&lang=<?php echo $lang; ?>&caderno=<?php echo $caderno; ?>">Próximo &raquo;</a>
             <?php else: ?>
                 <a class="disabled" href="#">Próximo</a>
             <?php endif; ?>
@@ -267,6 +265,7 @@ $currentPage = floor(($offset - $offsetBase) / $limit) + 1;
             }
 
             resultado += "</ul></div>";
+
             document.getElementById('container').innerHTML = resultado;
             localStorage.removeItem('respostas');
         }
