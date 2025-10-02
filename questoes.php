@@ -11,28 +11,37 @@ function getEnemExamByYear($year) {
     return json_decode($response, true);
 }
 
-// Função para buscar as questões filtradas por idioma
-function getEnemQuestionsByYear($year, $limit = 10, $offset = 0, $lang = 'pt') {
-    $url = "https://api.enem.dev/v1/exams/{$year}/questions?limit={$limit}&offset={$offset}&language={$lang}";
+// Função para buscar as questões filtradas (com ou sem idioma)
+function getEnemQuestionsByYear($year, $limit = 10, $offset = 0, $lang = null) {
+    $baseUrl = "https://api.enem.dev/v1/exams/{$year}/questions";
+    $query = "limit={$limit}&offset={$offset}";
+
+    if (!empty($lang)) {
+        $query .= "&language={$lang}";
+    }
+
+    $url = $baseUrl . "?" . $query;
+
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
     $response = curl_exec($ch);
+
+    if (curl_errno($ch)) {
+        echo "Erro cURL: " . curl_error($ch);
+        exit;
+    }
+
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
     return ['status' => $status, 'data' => json_decode($response, true)];
 }
 
-// Verifica se o ano não possui idiomas disponíveis
+// Busca os dados da prova
 $examData = getEnemExamByYear($year);
-if (empty($examData['languages']) && !$lang) {
-    // Caso não haja idiomas e o idioma não tenha sido selecionado, redireciona para a prova com idioma 'pt'
-    header("Location: ?year={$year}&lang=pt");
-    exit;
-}
 
-// Se o idioma não foi selecionado e houver idiomas disponíveis, exibe a lista de opções
-if (!$lang && !empty($examData['languages'])) {
+// Se o exame tiver idiomas e nenhum idioma foi selecionado, exibe seleção
+if (isset($examData['languages']) && !empty($examData['languages']) && !$lang) {
     echo "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>Seleção de Idioma</title>";
     echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css'>";
     echo "</head><body><div class='container mt-4'>";
@@ -53,9 +62,12 @@ if (!$lang && !empty($examData['languages'])) {
     exit;
 }
 
-// ----------------------------
-// Código original para exibir as questões
-// ----------------------------
+// Se o exame não tem idiomas, removemos o lang
+if (!isset($examData['languages']) || empty($examData['languages'])) {
+    $lang = null;
+}
+
+// Busca as questões
 $response = getEnemQuestionsByYear($year, $limit, $offset, $lang);
 
 if ($response['status'] !== 200) {
@@ -80,17 +92,12 @@ $currentPage = floor($offset / $limit) + 1;
 </head>
 <body>
     <div class="container" id="container">
-        <h2>Questões ENEM <?php echo $year; ?> (Idioma: <?php echo strtoupper($lang); ?>)</h2>
+        <h2>Questões ENEM <?php echo $year; ?><?php if ($lang): ?> (Idioma: <?php echo strtoupper($lang); ?>)<?php endif; ?></h2>
 
         <?php foreach ($body['questions'] as $question): 
-            $correct = '';
-            if (isset($question['correctAlternativeLetter'])) {
-                $correct = $question['correctAlternativeLetter'];
-            } elseif (isset($question['correctAlternative'])) {
-                $correct = $question['correctAlternative'];
-            } elseif (isset($question['correct'])) {
-                $correct = $question['correct'];
-            }
+            $correct = $question['correctAlternativeLetter'] ?? 
+                       $question['correctAlternative'] ?? 
+                       $question['correct'] ?? '';
         ?>
             <div class="question">
                 <h3>#<?php echo $question['index']; ?> - <?php echo htmlspecialchars($question['title']); ?></h3>
@@ -129,13 +136,13 @@ $currentPage = floor($offset / $limit) + 1;
 
         <div class="pagination">
             <?php if ($currentPage > 1): ?>
-                <a href="?year=<?php echo $year; ?>&offset=<?php echo max($offset - $limit, 0); ?>&lang=<?php echo $lang; ?>">&laquo; Anterior</a>
+                <a href="?year=<?php echo $year; ?>&offset=<?php echo max($offset - $limit, 0); ?><?php echo $lang ? "&lang={$lang}" : ''; ?>">&laquo; Anterior</a>
             <?php else: ?>
                 <a class="disabled" href="#">Anterior</a>
             <?php endif; ?>
 
             <?php if ($currentPage < $totalPages): ?>
-                <a href="?year=<?php echo $year; ?>&offset=<?php echo $offset + $limit; ?>&lang=<?php echo $lang; ?>">Próximo &raquo;</a>
+                <a href="?year=<?php echo $year; ?>&offset=<?php echo $offset + $limit; ?><?php echo $lang ? "&lang={$lang}" : ''; ?>">Próximo &raquo;</a>
             <?php else: ?>
                 <a class="disabled" href="#">Próximo</a>
             <?php endif; ?>
@@ -203,7 +210,6 @@ $currentPage = floor($offset / $limit) + 1;
 
                 resultado += `<li><strong>Total de acertos:</strong> ${acertos} de ${total} (${porcentagem}%)</li>`;
 
-                // Adiciona o canvas para o gráfico
                 resultado += `
                     <div style="max-width:500px; margin:20px auto;">
                         <canvas id="graficoResultado"></canvas>
@@ -244,7 +250,6 @@ $currentPage = floor($offset / $limit) + 1;
             }
 
             resultado += "</ul></div>";
-
             document.getElementById('container').innerHTML = resultado;
             localStorage.removeItem('respostas');
         }
