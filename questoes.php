@@ -5,91 +5,60 @@ $caderno = isset($_GET['caderno']) ? (int)$_GET['caderno'] : null;
 $limit = 10;
 $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
 
-// Função para buscar os dados do exame (inclui idiomas)
 function getEnemExamByYear($year) {
     $url = "https://api.enem.dev/v1/exams/{$year}";
-    $response = file_get_contents($url);
-    return json_decode($response, true);
+    return json_decode(file_get_contents($url), true);
 }
 
-// Função para buscar as questões filtradas por idioma e caderno (offset ajustado)
 function getEnemQuestionsByYear($year, $limit = 10, $offset = 0, $lang = null) {
     $url = "https://api.enem.dev/v1/exams/{$year}/questions?limit={$limit}&offset={$offset}";
-    if ($lang) {
-        $url .= "&language={$lang}";
-    }
+    if ($lang) $url .= "&language={$lang}";
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
     $response = curl_exec($ch);
     $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    return ['status' => $status, 'data' => json_decode($response, true)];
+    return ['status'=>$status, 'data'=>json_decode($response, true)];
 }
 
 $examData = getEnemExamByYear($year);
 $hasLanguages = !empty($examData['languages']);
 
-// 1) Escolha do caderno, se não selecionado
+// Escolha do caderno
 if (!$caderno) {
-    echo "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>Escolha do Caderno - ENEM {$year}</title>";
-    echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css'>";
-    echo "</head><body><div class='container mt-4'>";
-    echo "<h2>Selecione o caderno da prova ENEM {$year}:</h2>";
-    echo "<div class='d-flex gap-3'>";
-    echo "<a href='?year={$year}&caderno=1' class='btn btn-primary btn-lg'>Caderno 1 (Questões 1 a 90)</a>";
-    echo "<a href='?year={$year}&caderno=2' class='btn btn-secondary btn-lg'>Caderno 2 (Questões 91 a 180)</a>";
-    echo "</div>";
-    echo "<a href='index.php' class='btn btn-link mt-3'>← Voltar</a>";
-    echo "</div></body></html>";
+    header("Location: choice.php");
     exit;
 }
 
-// 2) Escolha do idioma, se existir idiomas e idioma não selecionado
+// Escolha do idioma
 if ($hasLanguages && !$lang) {
-    echo "<!DOCTYPE html><html lang='pt-BR'><head><meta charset='UTF-8'><title>Seleção de Idioma</title>";
-    echo "<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css'>";
-    echo "</head><body><div class='container mt-4'>";
-    echo "<h2>Selecione o idioma da prova de {$year} (Caderno {$caderno}):</h2>";
-    echo "<ul class='list-group'>";
+    echo "<!DOCTYPE html><html lang='pt-BR'>
+    <head><meta charset='UTF-8'><title>Seleção de Idioma</title>
+    <link rel='stylesheet' href='stylequestions.css'></head>
+    <body>
+    <div class='choice-page'>
+    <div class='container'>
+    <h2>Selecione o idioma da prova de {$year} (Caderno {$caderno}):</h2>";
     foreach ($examData['languages'] as $idioma) {
         $label = htmlspecialchars($idioma['label']);
         $value = htmlspecialchars($idioma['value']);
-        echo "<li class='list-group-item'>";
-        echo "<a href='?year={$year}&lang={$value}&caderno={$caderno}' class='btn btn-primary'>{$label}</a>";
-        echo "</li>";
+        echo "<a href='?year={$year}&lang={$value}&caderno={$caderno}' class='choice-btn'>{$label}</a>";
     }
-    echo "</ul>";
-    echo "<a href='?year={$year}&caderno={$caderno}' class='btn btn-secondary mt-3'>← Voltar</a>";
-    echo "</div></body></html>";
+    echo "<a href='?year={$year}&caderno={$caderno}' class='back-btn'>← Voltar</a>";
+    echo "</div></div></body></html>";
     exit;
 }
 
-// Se não há idiomas, força lang para null para evitar erro na API
-if (!$hasLanguages) {
-    $lang = null;
-}
+if (!$hasLanguages) $lang = null;
+if ($caderno === 2) $offset += 90;
 
-// Ajusta o offset para o caderno selecionado
-// Cada caderno tem 90 questões: caderno 1 = offset original; caderno 2 = offset + 90
-if ($caderno === 2) {
-    $offset += 90;
-}
-
-// Busca as questões com os parâmetros corretos
 $response = getEnemQuestionsByYear($year, $limit, $offset, $lang);
-
-if ($response['status'] !== 200) {
-    echo "Erro HTTP: {$response['status']}<br>";
-    echo "Resposta: " . htmlspecialchars(json_encode($response['data'])) . "<br>";
-    exit;
-}
+if ($response['status'] !== 200) { echo "Erro HTTP: {$response['status']}"; exit; }
 
 $body = $response['data'];
-$totalQuestions = isset($body['total']) && is_numeric($body['total']) ? (int)$body['total'] : 90;
-$totalPages = ceil(90 / $limit); // Cada caderno tem 90 questões
-$currentPage = floor(($offset % 90) / $limit) + 1; // Página relativa ao caderno
-
+$totalPages = ceil(90 / $limit);
+$currentPage = floor(($offset % 90) / $limit) + 1;
 ?>
 
 <!DOCTYPE html>
@@ -101,175 +70,104 @@ $currentPage = floor(($offset % 90) / $limit) + 1; // Página relativa ao cadern
     <link rel="stylesheet" href="stylequestions.css">
 </head>
 <body>
-    <div class="container" id="container">
-        <h2>Questões ENEM <?php echo $year; ?> (Caderno <?php echo $caderno; ?>, Idioma: <?php echo $lang ? strtoupper($lang) : 'Padrão'; ?>)</h2>
+<div class="container" id="container">
+    <h2>Questões ENEM <?php echo $year; ?> (Caderno <?php echo $caderno; ?>, Idioma: <?php echo $lang ? strtoupper($lang) : 'Padrão'; ?>)</h2>
 
-        <?php foreach ($body['questions'] as $question): 
-            $correct = '';
-            if (isset($question['correctAlternativeLetter'])) {
-                $correct = $question['correctAlternativeLetter'];
-            } elseif (isset($question['correctAlternative'])) {
-                $correct = $question['correctAlternative'];
-            } elseif (isset($question['correct'])) {
-                $correct = $question['correct'];
-            }
-        ?>
-            <div class="question">
-                <h3>#<?php echo $question['index']; ?> - <?php echo htmlspecialchars($question['title']); ?></h3>
+    <?php foreach ($body['questions'] as $question):
+        $correct = $question['correctAlternativeLetter'] ?? $question['correctAlternative'] ?? $question['correct'] ?? '';
+    ?>
+    <div class="question">
+        <h3>#<?php echo $question['index']; ?> - <?php echo htmlspecialchars($question['title']); ?></h3>
 
-                <?php if (!empty($question['context'])): ?>
-                    <div class="context">
-                        <strong>Contexto:</strong>
-                        <p><?php echo nl2br(htmlspecialchars($question['context'])); ?></p>
-                    </div>
-                <?php endif; ?>
+        <?php if (!empty($question['context'])): ?>
+            <div class="context"><strong>Contexto:</strong><p><?php echo nl2br(htmlspecialchars($question['context'])); ?></p></div>
+        <?php endif; ?>
 
-                <?php if (!empty($question['alternativesIntroduction'])): ?>
-                    <div class="enunciado">
-                        <strong>Enunciado:</strong>
-                        <p><?php echo nl2br(htmlspecialchars($question['alternativesIntroduction'])); ?></p>
-                    </div>
-                <?php endif; ?>
+        <?php if (!empty($question['alternativesIntroduction'])): ?>
+            <div class="enunciado"><strong>Enunciado:</strong><p><?php echo nl2br(htmlspecialchars($question['alternativesIntroduction'])); ?></p></div>
+        <?php endif; ?>
 
-                <?php if (!empty($question['files'])): ?>
-                    <div class="image-gallery">
-                        <?php foreach ($question['files'] as $file): ?>
-                            <img src="<?php echo htmlspecialchars($file); ?>" alt="Imagem da questão" />
-                        <?php endforeach; ?>
-                    </div>
-                <?php endif; ?>
-
-                <div class="alternatives" data-correct="<?php echo htmlspecialchars($correct); ?>">
-                    <?php foreach ($question['alternatives'] as $alt): ?>
-                        <button class="alternative-btn" data-letter="<?php echo $alt['letter']; ?>" onclick="selectAlternative(this)">
-                            <strong><?php echo $alt['letter']; ?>)</strong> <?php echo htmlspecialchars($alt['text']); ?>
-                        </button>
-                    <?php endforeach; ?>
-                </div>
+        <?php if (!empty($question['files'])): ?>
+            <div class="image-gallery">
+                <?php foreach ($question['files'] as $file): ?>
+                    <img src="<?php echo htmlspecialchars($file); ?>" alt="Imagem da questão" />
+                <?php endforeach; ?>
             </div>
-        <?php endforeach; ?>
+        <?php endif; ?>
 
-        <div class="pagination">
-            <?php if ($currentPage > 1): ?>
-                <a href="?year=<?php echo $year; ?>&offset=<?php echo max(($offset - $limit), ($caderno === 2 ? 90 : 0)); ?>&lang=<?php echo $lang; ?>&caderno=<?php echo $caderno; ?>">&laquo; Anterior</a>
-            <?php else: ?>
-                <a class="disabled" href="#">Anterior</a>
-            <?php endif; ?>
-
-            <?php if ($currentPage < $totalPages): ?>
-                <a href="?year=<?php echo $year; ?>&offset=<?php echo ($offset + $limit); ?>&lang=<?php echo $lang; ?>&caderno=<?php echo $caderno; ?>">Próximo &raquo;</a>
-            <?php else: ?>
-                <a class="disabled" href="#">Próximo</a>
-            <?php endif; ?>
+        <div class="alternatives" data-correct="<?php echo htmlspecialchars($correct); ?>">
+            <?php foreach ($question['alternatives'] as $alt): ?>
+                <button class="alternative-btn" data-letter="<?php echo $alt['letter']; ?>" onclick="selectAlternative(this)">
+                    <strong><?php echo $alt['letter']; ?>)</strong> <?php echo htmlspecialchars($alt['text']); ?>
+                </button>
+            <?php endforeach; ?>
         </div>
+    </div>
+    <?php endforeach; ?>
 
-        <button class="finalizar-btn" onclick="finalizarProva()">Finalizar Prova</button>
+    <div class="pagination">
+        <?php if ($currentPage > 1): ?>
+            <a href="?year=<?php echo $year; ?>&offset=<?php echo max(($offset - $limit), ($caderno === 2 ? 90 : 0)); ?>&lang=<?php echo $lang; ?>&caderno=<?php echo $caderno; ?>">&laquo; Anterior</a>
+        <?php else: ?>
+            <a class="disabled" href="#">Anterior</a>
+        <?php endif; ?>
+
+        <?php if ($currentPage < $totalPages): ?>
+            <a href="?year=<?php echo $year; ?>&offset=<?php echo ($offset + $limit); ?>&lang=<?php echo $lang; ?>&caderno=<?php echo $caderno; ?>">Próximo &raquo;</a>
+        <?php else: ?>
+            <a class="disabled" href="#">Próximo</a>
+        <?php endif; ?>
     </div>
 
-    <script>
-        function selectAlternative(button) {
-            const questionDiv = button.closest('.question');
-            const questionIndex = questionDiv.querySelector('h3').textContent.match(/#(\d+)/)[1];
-            const questionId = "q" + questionIndex;
+    <button class="finalizar-btn" onclick="finalizarProva()">Finalizar Prova</button>
+</div>
 
-            const buttons = questionDiv.querySelectorAll('.alternative-btn');
-            buttons.forEach(btn => btn.classList.remove('selected'));
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function selectAlternative(button){
+    const questionDiv = button.closest('.question');
+    const questionIndex = questionDiv.querySelector('h3').textContent.match(/#(\d+)/)[1];
+    const questionId = "q"+questionIndex;
 
-            button.classList.add('selected');
+    const buttons = questionDiv.querySelectorAll('.alternative-btn');
+    buttons.forEach(btn=>btn.classList.remove('selected'));
+    button.classList.add('selected');
 
-            const selectedLetter = button.dataset.letter;
-            const correctLetter = questionDiv.querySelector('.alternatives').dataset.correct;
+    const selectedLetter = button.dataset.letter;
+    const correctLetter = questionDiv.querySelector('.alternatives').dataset.correct;
 
-            let respostas = JSON.parse(localStorage.getItem('respostas')) || {};
-            respostas[questionId] = {
-                selecionada: selectedLetter,
-                correta: correctLetter
-            };
-            localStorage.setItem('respostas', JSON.stringify(respostas));
-        }
+    let respostas = JSON.parse(localStorage.getItem('respostas'))||{};
+    respostas[questionId]={selecionada:selectedLetter,correta:correctLetter};
+    localStorage.setItem('respostas', JSON.stringify(respostas));
+}
 
-        function finalizarProva() {
-            if (!confirm("Deseja realmente finalizar a prova?")) return;
+function finalizarProva(){
+    if(!confirm("Deseja realmente finalizar a prova?")) return;
+    let respostas = JSON.parse(localStorage.getItem('respostas'))||{};
+    let resultado="<h2>Resultado da Prova</h2><div class='respostas-container'><ul>";
 
-            let respostas = JSON.parse(localStorage.getItem('respostas')) || {};
-            let resultado = "<h2>Resultado da Prova</h2><div class='respostas-container'><ul>";
-
-            const ordenadas = Object.keys(respostas).sort(
-                (a, b) => parseInt(a.replace('q', '')) - parseInt(b.replace('q', ''))
-            );
-
-            if (ordenadas.length === 0) {
-                resultado += "<li>Você não respondeu nenhuma questão.</li>";
-            } else {
-                let acertos = 0;
-
-                ordenadas.forEach(key => {
-                    const r = respostas[key];
-                    const correta = r.correta;
-                    const marcada = r.selecionada;
-                    const status = correta === marcada ? "✅ Acertou" : "❌ Errou";
-
-                    if (correta === marcada) acertos++;
-
-                    resultado += `<li>
-                        <strong>Questão ${key.replace('q', '')}</strong><br>
-                        Sua resposta: <strong>${marcada}</strong><br>
-                        Gabarito: <strong>${correta}</strong><br>
-                        Resultado: ${status}
-                    </li>`;
-                });
-
-                let total = ordenadas.length;
-                let erros = total - acertos;
-                let porcentagem = ((acertos / total) * 100).toFixed(2);
-
-                resultado += `<li><strong>Total de acertos:</strong> ${acertos} de ${total} (${porcentagem}%)</li>`;
-
-                resultado += `
-                    <div style="max-width:500px; margin:20px auto;">
-                        <canvas id="graficoResultado"></canvas>
-                    </div>
-                `;
-
-                setTimeout(() => {
-                    const ctx = document.getElementById('graficoResultado');
-                    new Chart(ctx, {
-                        type: 'doughnut',
-                        data: {
-                            labels: ['Acertos', 'Erros'],
-                            datasets: [{
-                                data: [acertos, erros],
-                                backgroundColor: ['#4CAF50', '#F44336']
-                            }]
-                        },
-                        options: {
-                            responsive: true,
-                            plugins: {
-                                legend: {
-                                    position: 'bottom'
-                                },
-                                tooltip: {
-                                    callbacks: {
-                                        label: function(context) {
-                                            let total = acertos + erros;
-                                            let value = context.raw;
-                                            let pct = ((value / total) * 100).toFixed(1);
-                                            return `${context.label}: ${value} (${pct}%)`;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }, 100);
-            }
-
-            resultado += "</ul></div>";
-
-            document.getElementById('container').innerHTML = resultado;
-            localStorage.removeItem('respostas');
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    const ordenadas = Object.keys(respostas).sort((a,b)=>parseInt(a.replace('q',''))-parseInt(b.replace('q','')));
+    if(ordenadas.length===0){ resultado+="<li>Você não respondeu nenhuma questão.</li>"; }
+    else{
+        let acertos=0;
+        ordenadas.forEach(key=>{
+            const r=respostas[key]; const correta=r.correta; const marcada=r.selecionada;
+            const status = correta===marcada?"✅ Acertou":"❌ Errou";
+            if(correta===marcada) acertos++;
+            resultado+=`<li><strong>Questão ${key.replace('q','')}</strong><br>Sua resposta: <strong>${marcada}</strong><br>Gabarito: <strong>${correta}</strong><br>Resultado: ${status}</li>`;
+        });
+        let total = ordenadas.length, erros = total-acertos, pct = ((acertos/total)*100).toFixed(2);
+        resultado+=`<li><strong>Total de acertos:</strong> ${acertos} de ${total} (${pct}%)</li>`;
+        resultado+=`<div style="max-width:500px;margin:20px auto;"><canvas id="graficoResultado"></canvas></div>`;
+        setTimeout(()=>{
+            const ctx=document.getElementById('graficoResultado');
+            new Chart(ctx,{type:'doughnut',data:{labels:['Acertos','Erros'],datasets:[{data:[acertos,erros],backgroundColor:['#4CAF50','#F44336']}]},options:{responsive:true,plugins:{legend:{position:'bottom'}}}});
+        },100);
+    }
+    resultado+="</ul></div>";
+    document.getElementById('container').innerHTML=resultado;
+    localStorage.removeItem('respostas');
+}
+</script>
 </body>
 </html>

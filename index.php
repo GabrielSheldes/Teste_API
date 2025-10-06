@@ -9,18 +9,17 @@ $provas = json_decode(file_get_contents($url)); // Retorna array de objetos
     <meta charset="UTF-8">
     <title>Provas do ENEM</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/css/bootstrap.min.css">
-    <link rel="stylesheet" href="styleindex.css">
+<link rel="stylesheet" href="styleindex.css?v=1">
 </head>
 <body>
-    <div class="container mt-4">
-        <h1 class="mb-4">Lista de Provas do ENEM</h1>
+<div class="container mt-4">
+    <h1 class="mb-4">Lista de Provas do ENEM</h1>
 
-        <div class="row">
+    <div class="row">
         <?php foreach ($provas as $prova): ?>
             <div class="col-md-6 mb-4">
                 <div class="card">
                     <div class="card-body">
-                        <!-- Link para a página de questões com o ano como parâmetro -->
                         <h4 class="card-title">
                             <a href="questoes.php?year=<?= $prova->year ?>" class="text-decoration-none">
                                 <?= htmlspecialchars($prova->title) ?> (<?= $prova->year ?>)
@@ -29,24 +28,24 @@ $provas = json_decode(file_get_contents($url)); // Retorna array de objetos
 
                         <h6>Disciplinas:</h6>
                         <ul>
-                        <?php foreach ($prova->disciplines as $disciplina): ?>
-                            <li><?= htmlspecialchars($disciplina->label) ?> (<?= $disciplina->value ?>)</li>
-                        <?php endforeach; ?>
+                            <?php foreach ($prova->disciplines as $disciplina): ?>
+                                <li><?= htmlspecialchars($disciplina->label) ?> (<?= $disciplina->value ?>)</li>
+                            <?php endforeach; ?>
                         </ul>
 
                         <h6>Idiomas:</h6>
                         <ul>
-                        <?php foreach ($prova->languages as $idioma): ?>
-                            <li><?= htmlspecialchars($idioma->label) ?> (<?= $idioma->value ?>)</li>
-                        <?php endforeach; ?>
+                            <?php foreach ($prova->languages as $idioma): ?>
+                                <li><?= htmlspecialchars($idioma->label) ?> (<?= $idioma->value ?>)</li>
+                            <?php endforeach; ?>
                         </ul>
                     </div>
                 </div>
             </div>
         <?php endforeach; ?>
-        </div>
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
