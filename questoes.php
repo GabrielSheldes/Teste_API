@@ -27,9 +27,10 @@ $hasLanguages = !empty($examData['languages']);
 
 // Escolha do caderno
 if (!$caderno) {
-    header("Location: choice.php");
+    header("Location: choice.php?year={$year}");
     exit;
 }
+
 
 // Escolha do idioma
 if ($hasLanguages && !$lang) {
